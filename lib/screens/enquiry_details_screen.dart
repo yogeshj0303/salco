@@ -7,6 +7,7 @@ import '../models/enquiry_detail.dart';
 import '../services/api_service.dart';
 import '../services/shared_prefs_service.dart';
 import 'add_quotation_screen.dart';
+import '../models/work_order_response.dart';
 
 class EnquiryDetailsScreen extends StatefulWidget {
   final EnquiryData enquiry;
@@ -400,6 +401,26 @@ class _EnquiryDetailsScreenState extends State<EnquiryDetailsScreen> {
                     ),
                   ),
                 ),
+                if (detail.workOrderStatus == 'approved')
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Approved',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -450,6 +471,23 @@ class _EnquiryDetailsScreenState extends State<EnquiryDetailsScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 12),
+                if (detail.workOrderStatus != 'approved')
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _handleWorkOrderApproval(detail),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryTeal,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Approve Work Order'),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -496,6 +534,47 @@ class _EnquiryDetailsScreenState extends State<EnquiryDetailsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleWorkOrderApproval(EnquiryDetail detail) async {
+    try {
+      setState(() {
+        _isRefreshing = true;
+      });
+
+      final response = await _apiService.updateWorkOrderStatus(
+        enquiryId: widget.enquiry.id,
+        quotationId: detail.id,
+        workOrderStatus: 'approved',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response.message),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Refresh the data
+        await _onRefresh();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to approve work order: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
+    }
   }
 
   Widget _buildInfoRow(IconData icon, String text) {

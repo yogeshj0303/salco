@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../models/enquiry.dart';
 import '../models/get_enquiry_response.dart';
+import '../models/work_order_response.dart';
 
 class ApiService {
   static const String baseUrl = 'https://salco.acttconnect.com/api';
@@ -114,6 +115,38 @@ class ApiService {
       return data;
     } catch (e) {
       throw Exception('Failed to submit quotation: $e');
+    }
+  }
+
+  Future<WorkOrderResponse> updateWorkOrderStatus({
+    required int enquiryId,
+    required int quotationId,
+    required String workOrderStatus,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/update-enquiry-work-order'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'enquiry_id': enquiryId,
+          'quotation_id': quotationId,
+          'work_order_status': workOrderStatus,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      final workOrderResponse = WorkOrderResponse.fromJson(data);
+
+      if (response.statusCode != 200 || workOrderResponse.status != 'success') {
+        throw Exception(workOrderResponse.message);
+      }
+
+      return workOrderResponse;
+    } catch (e) {
+      throw Exception('Failed to update work order status: $e');
     }
   }
 } 

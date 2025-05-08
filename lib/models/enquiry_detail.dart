@@ -6,6 +6,7 @@ class EnquiryDetail {
   final String? attachment;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String workOrderStatus;
 
   EnquiryDetail({
     required this.id,
@@ -15,6 +16,7 @@ class EnquiryDetail {
     this.attachment,
     required this.createdAt,
     required this.updatedAt,
+    this.workOrderStatus = '',
   });
 
   factory EnquiryDetail.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class EnquiryDetail {
       attachment: json['attachment']?.toString(),
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ?? DateTime.now(),
+      workOrderStatus: json['work_order_status']?.toString() ?? '',
     );
   }
 } 
