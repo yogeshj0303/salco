@@ -1,3 +1,5 @@
+import 'enquiry_detail.dart';
+
 class GetEnquiryResponse {
   final String status;
   final String message;
@@ -30,6 +32,7 @@ class EnquiryData {
   final String note;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final List<EnquiryDetail> enquiryDetails;
 
   EnquiryData({
     required this.id,
@@ -41,9 +44,11 @@ class EnquiryData {
     required this.note,
     required this.createdAt,
     required this.updatedAt,
+    required this.enquiryDetails,
   });
 
   factory EnquiryData.fromJson(Map<String, dynamic> json) {
+    final List<dynamic> enquiryDetailsJson = json['enquiry_details'] as List? ?? [];
     return EnquiryData(
       id: json['id'] as int? ?? 0,
       userId: json['user_id'] as int? ?? 0,
@@ -54,6 +59,9 @@ class EnquiryData {
       note: json['note']?.toString() ?? '',
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ?? DateTime.now(),
+      enquiryDetails: enquiryDetailsJson
+          .map((detail) => EnquiryDetail.fromJson(detail as Map<String, dynamic>))
+          .toList(),
     );
   }
 } 
