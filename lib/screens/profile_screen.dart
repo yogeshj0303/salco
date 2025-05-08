@@ -1,8 +1,34 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
+import '../services/shared_prefs_service.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _sharedPrefsService = SharedPrefsService();
+  Map<String, dynamic>? _userData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final userData = await _sharedPrefsService.getUserData();
+    if (mounted) {
+      setState(() {
+        _userData = userData;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,25 +52,27 @@ class ProfileScreen extends StatelessWidget {
       //     ),
       //   ],
       // ),
-      body: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          _buildHeader(),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: EdgeInsets.zero,
               children: [
-                _buildInfoSection(),
-                const SizedBox(height: 16),
-                _buildSettingsSection(),
-                const SizedBox(height: 24),
-                _buildLogoutButton(context),
+                _buildHeader(),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInfoSection(),
+                      const SizedBox(height: 16),
+                      _buildSettingsSection(),
+                      const SizedBox(height: 24),
+                      _buildLogoutButton(context),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -57,15 +85,20 @@ class ProfileScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 40,
             backgroundColor: Colors.white,
-            child: Icon(Icons.person, size: 40, color: AppColors.primaryTeal),
+            backgroundImage: _userData?['avatar'] != null && _userData!['avatar'].toString().isNotEmpty
+                ? NetworkImage(_userData!['avatar'])
+                : null,
+            child: _userData?['avatar'] == null || _userData!['avatar'].toString().isEmpty
+                ? const Icon(Icons.person, size: 40, color: AppColors.primaryTeal)
+                : null,
           ),
           const SizedBox(height: 12),
-          const Text(
-            'John Doe',
-            style: TextStyle(
+          Text(
+            _userData?['name'] ?? 'User',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 20,
               fontWeight: FontWeight.w600,
@@ -78,9 +111,9 @@ class ProfileScreen extends StatelessWidget {
               color: Colors.white24,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Text(
-              'Sales Representative',
-              style: TextStyle(
+            child: Text(
+              _userData?['email'] ?? 'User',
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
@@ -101,13 +134,15 @@ class ProfileScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildListTile(Icons.person_outline, 'Name', 'John Doe'),
+          _buildListTile(Icons.person_outline, 'Name', _userData?['name'] ?? 'N/A'),
           _buildDivider(),
-          _buildListTile(Icons.email_outlined, 'Email', 'john.doe@example.com'),
+          _buildListTile(Icons.email_outlined, 'Email', _userData?['email'] ?? 'N/A'),
           _buildDivider(),
-          _buildListTile(Icons.phone_outlined, 'Phone', '+1234567890'),
-          // _buildDivider(),
-          // _buildListTile(Icons.work_outline, 'Role', 'Sales Representative'),
+          _buildListTile(Icons.calendar_today_outlined, 'Member Since', 
+            _userData?['created_at'] != null 
+              ? DateTime.parse(_userData!['created_at'].toString().split('T')[0]).toString().split(' ')[0].split('-').reversed.join('/')
+              : 'N/A'
+          ),
         ],
       ),
     );
@@ -170,7 +205,12 @@ class ProfileScreen extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () {},
+        onPressed: () async {
+          await _sharedPrefsService.clearUserData();
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/');
+          }
+        },
         icon: const Icon(Icons.logout, size: 18),
         label: const Text('Logout'),
         style: ElevatedButton.styleFrom(

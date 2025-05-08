@@ -4,6 +4,8 @@ import 'package:selco_app/screens/dashboard_screen.dart';
 import 'package:selco_app/screens/main_screen.dart';
 import 'package:selco_app/utils/glass_morphism.dart';
 import '../constants/colors.dart';
+import '../services/api_service.dart';
+import '../services/shared_prefs_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,7 +17,23 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _apiService = ApiService();
+  final _sharedPrefsService = SharedPrefsService();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAutoLogin();
+  }
+
+  Future<void> _checkAutoLogin() async {
+    final isLoggedIn = await _sharedPrefsService.isLoggedIn();
+    if (isLoggedIn) {
+      _navigateToMainScreen();
+    }
+  }
 
   @override
   void dispose() {
@@ -280,32 +298,79 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
       ),
       child: ElevatedButton(
-        onPressed: _handleLogin,
+        onPressed: _isLoading ? null : _handleLogin,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
           padding: const EdgeInsets.symmetric(vertical: 8),
         ),
-        child: const Text(
-          'Login',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
-          ),
-        ),
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Text(
+                'Login',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                ),
+              ),
       ),
     );
   }
 
-  void _handleLogin() {
+  void _handleLogin() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // TODO: Implement actual login logic
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainScreen()),
-      );
+      setState(() => _isLoading = true);
+      
+      try {
+        final response = await _apiService.login(
+          _emailController.text,
+          _passwordController.text,
+        );
+
+        if (response['status'] == 'success' && response['user'] != null) {
+          // Save user data
+          await _sharedPrefsService.saveUserData(response['user']);
+          
+          // Print saved data
+          final savedData = await _sharedPrefsService.getUserData();
+          print('Saved User Data: $savedData');
+          
+          if (mounted) {
+            _navigateToMainScreen();
+          }
+        } else {
+          throw Exception(response['message'] ?? 'Login failed');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
     }
+  }
+
+  void _navigateToMainScreen() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const MainScreen()),
+    );
   }
 }

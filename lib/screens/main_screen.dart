@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:selco_app/screens/dashboard_screen.dart';
-import 'package:selco_app/screens/enquiry_form.dart';
+import 'package:selco_app/screens/enquiry.dart';
 import 'package:selco_app/screens/profile_screen.dart';
 import 'package:selco_app/screens/quotation_list_screen.dart';
 import '../constants/colors.dart';
@@ -18,7 +18,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     const DashboardScreen(),
-    const EnquiryForm(),
+    const Enquiries(),
     const QuotationListScreen(),
     const ProfileScreen(),
   ];
@@ -48,7 +48,7 @@ class _MainScreenState extends State<MainScreen> {
             elevation: 8,
             items: [
               _buildNavItem(Icons.dashboard_rounded, 'Dashboard'),
-              _buildNavItem(Icons.add_circle_rounded, 'New Enquiry'),
+              _buildNavItem(Icons.add_circle_rounded, 'Enquiries'),
               _buildNavItem(Icons.description_rounded, 'Quotations'),
               _buildNavItem(Icons.person_rounded, 'Profile'),
             ],

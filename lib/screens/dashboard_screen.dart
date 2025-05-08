@@ -1,86 +1,142 @@
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
+import '../services/api_service.dart';
+import '../services/shared_prefs_service.dart';
+import '../models/get_enquiry_response.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final _apiService = ApiService();
+  final _sharedPrefsService = SharedPrefsService();
+  bool _isLoading = true;
+  int _totalEnquiries = 0;
+  int _activeOrders = 0;
+  int _completedOrders = 0;
+  List<EnquiryData> _recentEnquiries = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    try {
+      final userData = await _sharedPrefsService.getUserData();
+      if (userData != null) {
+        final userId = userData['id'] as int;
+        final enquiries = await _apiService.getEnquiries(userId);
+        
+        if (mounted) {
+          setState(() {
+            _totalEnquiries = enquiries.length;
+            // For now, we'll use placeholder logic for active and completed orders
+            // You should update this based on your actual business logic
+            _activeOrders = enquiries.where((e) => e.note.contains('active')).length;
+            _completedOrders = enquiries.where((e) => e.note.contains('completed')).length;
+            _recentEnquiries = enquiries.take(2).toList();
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading dashboard data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 250, // Reduced from 280
-            pinned: true,
-            backgroundColor: AppColors.primaryTeal,
-            elevation: 2,
-            flexibleSpace: FlexibleSpaceBar(
-              expandedTitleScale: 1.0,
-              titlePadding: const EdgeInsets.only(
-                left: 20,
-                right: 20,
-                bottom: 180, // Reduced from 180
-                top: 16, // Added top padding
-              ),
-              title: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Welcome back,',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Dashboard',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topRight,
-                        end: Alignment.bottomLeft,
-                        colors: [
-                          AppColors.primaryTeal.withOpacity(
-                            0.8,
-                          ), // Instead of .darker
-                          AppColors.primaryTeal,
-                        ],
+      body: RefreshIndicator(
+        onRefresh: _loadDashboardData,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 250,
+              pinned: true,
+              backgroundColor: AppColors.primaryTeal,
+              elevation: 2,
+              flexibleSpace: FlexibleSpaceBar(
+                expandedTitleScale: 1.0,
+                titlePadding: const EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  bottom: 180,
+                  top: 16,
+                ),
+                title: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Welcome back,',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
-                  ),
-                  // More subtle pattern
-                  CustomPaint(
-                    painter: CirclePatternPainter(
-                      color: Colors.white.withOpacity(0.03),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Dashboard',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 30, // Adjusted from 20
-                    child: _buildStatsRow(),
-                  ),
-                ],
+                  ],
+                ),
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topRight,
+                          end: Alignment.bottomLeft,
+                          colors: [
+                            AppColors.primaryTeal.withOpacity(0.8),
+                            AppColors.primaryTeal,
+                          ],
+                        ),
+                      ),
+                    ),
+                    CustomPaint(
+                      painter: CirclePatternPainter(
+                        color: Colors.white.withOpacity(0.03),
+                      ),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 30,
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                          : _buildStatsRow(),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          _buildRecentActivitySection(),
-        ],
+            _buildRecentActivitySection(),
+          ],
+        ),
       ),
     );
   }
@@ -93,19 +149,19 @@ class DashboardScreen extends StatelessWidget {
         children: [
           _buildStatItem(
             'Total Enquiries',
-            '156',
+            _totalEnquiries.toString(),
             Icons.business,
             Colors.blue.withOpacity(0.2),
           ),
           _buildStatItem(
             'Active Orders',
-            '32',
+            _activeOrders.toString(),
             Icons.pending_actions,
             Colors.orange.withOpacity(0.2),
           ),
           _buildStatItem(
             'Completed',
-            '124',
+            _completedOrders.toString(),
             Icons.check_circle,
             Colors.green.withOpacity(0.2),
           ),
@@ -196,22 +252,40 @@ class DashboardScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            _buildRecentActivityItem(
-              'New Enquiry',
-              'ABC Company Ltd.',
-              '2 hours ago',
-              Icons.business,
-            ),
-            _buildRecentActivityItem(
-              'Quotation Approved',
-              'XYZ Industries',
-              '5 hours ago',
-              Icons.check_circle,
-            ),
+            if (_recentEnquiries.isEmpty)
+              Center(
+                child: Text(
+                  'No recent activity',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+              )
+            else
+              ..._recentEnquiries.map((enquiry) => _buildRecentActivityItem(
+                    'New Enquiry',
+                    enquiry.clientName,
+                    _formatTimeAgo(enquiry.createdAt),
+                    Icons.business,
+                  )),
           ],
         ),
       ),
     );
+  }
+
+  String _formatTimeAgo(DateTime date) {
+    final difference = DateTime.now().difference(date);
+    if (difference.inDays > 0) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minutes ago';
+    } else {
+      return 'Just now';
+    }
   }
 
   Widget _buildRecentActivityItem(
