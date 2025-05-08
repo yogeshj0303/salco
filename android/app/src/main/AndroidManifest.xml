@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.selco.app">
+    package="com.example.selco_app">
     
     <!-- Internet Permission -->
     <uses-permission android:name="android.permission.INTERNET"/>
