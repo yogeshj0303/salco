@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../models/enquiry.dart';
 import '../models/get_enquiry_response.dart';
 
@@ -72,6 +74,46 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Failed to connect to the server: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> submitQuotation({
+    required int enquiryId,
+    required String amount,
+    required String quotation,
+    File? attachment,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/store-enquiry-quotation'),
+      );
+
+      request.fields['enquiry_id'] = enquiryId.toString();
+      request.fields['amount'] = amount;
+      request.fields['quotation_text'] = quotation;
+
+      if (attachment != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'attachment',
+            attachment.path,
+            contentType: MediaType('application', 'pdf'),
+          ),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode != 200 || data['status'] != 'success') {
+        throw Exception(data['message'] ?? 'Failed to submit quotation');
+      }
+
+      return data;
+    } catch (e) {
+      throw Exception('Failed to submit quotation: $e');
     }
   }
 } 

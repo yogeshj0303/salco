@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../constants/colors.dart';
 import '../models/get_enquiry_response.dart';
 import '../models/enquiry_detail.dart';
+import '../services/api_service.dart';
+import '../services/shared_prefs_service.dart';
+import 'add_quotation_screen.dart';
 
-class EnquiryDetailsScreen extends StatelessWidget {
+class EnquiryDetailsScreen extends StatefulWidget {
   final EnquiryData enquiry;
 
   const EnquiryDetailsScreen({
@@ -12,11 +16,95 @@ class EnquiryDetailsScreen extends StatelessWidget {
     required this.enquiry,
   });
 
-  Future<void> _launchAttachment(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      throw Exception('Could not launch $url');
+  @override
+  State<EnquiryDetailsScreen> createState() => _EnquiryDetailsScreenState();
+}
+
+class _EnquiryDetailsScreenState extends State<EnquiryDetailsScreen> {
+  bool _isRefreshing = false;
+  final _apiService = ApiService();
+  final _sharedPrefsService = SharedPrefsService();
+  DateTime? _lastUpdated;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastUpdated = DateTime.now();
+  }
+
+  Future<void> _launchAttachment(BuildContext context, String url) async {
+    try {
+      await launchUrl(Uri.parse(url));
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening attachment: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
+
+  void _navigateToAddQuotation(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddQuotationScreen(enquiry: widget.enquiry),
+      ),
+    );
+  }
+
+  Future<void> _onRefresh() async {
+    setState(() {
+      _isRefreshing = true;
+    });
+
+    try {
+      final userData = await _sharedPrefsService.getUserData();
+      if (userData != null) {
+        final userId = userData['id'] as int;
+        final enquiries = await _apiService.getEnquiries(userId);
+        
+        // Find the updated enquiry data
+        final updatedEnquiry = enquiries.firstWhere(
+          (e) => e.id == widget.enquiry.id,
+          orElse: () => widget.enquiry,
+        );
+
+        if (mounted) {
+          setState(() {
+            // Update the widget's enquiry data
+            widget.enquiry.enquiryDetails.clear();
+            widget.enquiry.enquiryDetails.addAll(updatedEnquiry.enquiryDetails);
+            _lastUpdated = DateTime.now();
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
+    }
+  }
+
+  bool _isDataStale() {
+    if (_lastUpdated == null) return true;
+    final difference = DateTime.now().difference(_lastUpdated!);
+    // Consider data stale if it's older than 5 minutes
+    return difference.inMinutes >= 5;
   }
 
   @override
@@ -26,6 +114,13 @@ class EnquiryDetailsScreen extends StatelessWidget {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: AppColors.primaryTeal,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+          ),
+        ),
         title: const Text(
           'Enquiry Details',
           style: TextStyle(
@@ -35,15 +130,66 @@ class EnquiryDetailsScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: () => _navigateToAddQuotation(context),
+            icon: const Icon(
+              Icons.add_circle_outline,
+              color: Colors.white,
+            ),
+            tooltip: 'Add Quotation',
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: Stack(
           children: [
-            _buildClientInfoCard(),
-            const SizedBox(height: 16),
-            _buildQuotationsSection(),
+            SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildClientInfoCard(),
+                  const SizedBox(height: 16),
+                  _buildQuotationsSection(),
+                  if (_isDataStale()) ...[
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 24.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.refresh,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Pull down to refresh',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (_isRefreshing)
+              Container(
+                color: Colors.black.withOpacity(0.1),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
           ],
         ),
       ),
@@ -88,7 +234,7 @@ class EnquiryDetailsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        enquiry.clientName,
+                        widget.enquiry.clientName,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -96,7 +242,7 @@ class EnquiryDetailsScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Created on ${_formatDate(enquiry.createdAt)}',
+                        'Created on ${_formatDate(widget.enquiry.createdAt)}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],
@@ -108,14 +254,14 @@ class EnquiryDetailsScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            _buildInfoRow(Icons.location_on, enquiry.address),
+            _buildInfoRow(Icons.location_on, widget.enquiry.address),
             const SizedBox(height: 8),
-            _buildInfoRow(Icons.phone, enquiry.phoneNo),
-            if (enquiry.contactPerson.isNotEmpty) ...[
+            _buildInfoRow(Icons.phone, widget.enquiry.phoneNo),
+            if (widget.enquiry.contactPerson.isNotEmpty) ...[
               const SizedBox(height: 8),
-              _buildInfoRow(Icons.person, enquiry.contactPerson),
+              _buildInfoRow(Icons.person, widget.enquiry.contactPerson),
             ],
-            if (enquiry.note.isNotEmpty) ...[
+            if (widget.enquiry.note.isNotEmpty) ...[
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -135,7 +281,7 @@ class EnquiryDetailsScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        enquiry.note,
+                        widget.enquiry.note,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[700],
@@ -184,7 +330,7 @@ class EnquiryDetailsScreen extends StatelessWidget {
                 ],
               ),
               Text(
-                '${enquiry.enquiryDetails.length} quotations',
+                '${widget.enquiry.enquiryDetails.length} quotations',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[600],
@@ -193,7 +339,7 @@ class EnquiryDetailsScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          if (enquiry.enquiryDetails.isEmpty)
+          if (widget.enquiry.enquiryDetails.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(32.0),
@@ -218,7 +364,7 @@ class EnquiryDetailsScreen extends StatelessWidget {
               ),
             )
           else
-            ...enquiry.enquiryDetails.map((detail) => _buildQuotationCard(detail)),
+            ...widget.enquiry.enquiryDetails.map((detail) => _buildQuotationCard(detail)),
         ],
       ),
     );
@@ -315,30 +461,36 @@ class EnquiryDetailsScreen extends StatelessWidget {
                   bottom: Radius.circular(12),
                 ),
               ),
-              child: ListTile(
-                dense: true,
-                leading: Icon(
-                  Icons.attach_file,
-                  size: 20,
-                  color: Colors.grey[600],
-                ),
-                title: Text(
-                  'View Attachment',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.primaryTeal,
-                    fontWeight: FontWeight.w500,
+              child: Builder(
+                builder: (context) => ListTile(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(12),
+                    ),
                   ),
+                  leading: Icon(
+                    Icons.attach_file,
+                    size: 20,
+                    color: Colors.grey[600],
+                  ),
+                  title: Text(
+                    'View Attachment',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.primaryTeal,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  trailing: Icon(
+                    Icons.open_in_new,
+                    size: 20,
+                    color: AppColors.primaryTeal,
+                  ),
+                  onTap: () {
+                    final attachmentUrl = 'https://salco.acttconnect.com/${detail.attachment}';
+                    _launchAttachment(context, attachmentUrl);
+                  },
                 ),
-                trailing: Icon(
-                  Icons.open_in_new,
-                  size: 20,
-                  color: AppColors.primaryTeal,
-                ),
-                onTap: () {
-                  final attachmentUrl = 'https://salco.acttconnect.com/${detail.attachment}';
-                  _launchAttachment(attachmentUrl);
-                },
               ),
             ),
         ],
