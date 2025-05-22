@@ -9,7 +9,7 @@ import '../models/work_order_response.dart';
 class ApiService {
   static const String baseUrl = 'https://salco.acttconnect.com/api';
 
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<Map<String, dynamic>> login(String email, String password, {bool isTechnician = false}) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/user-login'),
@@ -20,6 +20,7 @@ class ApiService {
         body: jsonEncode({
           'email': email,
           'password': password,
+          'is_technician': isTechnician,
         }),
       );
 

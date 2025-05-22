@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:selco_app/screens/dashboard_screen.dart';
-import 'package:selco_app/screens/main_screen.dart';
-import 'package:selco_app/screens/technician_login_screen.dart';
+import 'package:selco_app/screens/login_screen.dart';
+import 'package:selco_app/screens/technician_home_screen.dart';
 import 'package:selco_app/utils/glass_morphism.dart';
 import '../constants/colors.dart';
 import '../services/api_service.dart';
 import '../services/shared_prefs_service.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class TechnicianLoginScreen extends StatefulWidget {
+  const TechnicianLoginScreen({super.key});
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<TechnicianLoginScreen> createState() => _TechnicianLoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _TechnicianLoginScreenState extends State<TechnicianLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -37,19 +36,19 @@ class _LoginScreenState extends State<LoginScreen> {
         print('Auto Login - User Data: $userData');
         
         if (userData != null) {
-          // Check if user is a technician
-          if (userData['isTechnician'] == true) {
-            // If technician, navigate to technician login screen
+          // Check if user is not a technician
+          if (userData['isTechnician'] != true) {
+            // If not technician, navigate to regular login screen
             if (mounted) {
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (context) => const TechnicianLoginScreen()),
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
                 (route) => false,
               );
               return;
             }
           } else {
-            // For non-technician users, proceed to main screen
+            // For technician users, proceed to technician home screen
             if (mounted) {
               _navigateToMainScreen();
             }
@@ -139,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 30),
         _buildLoginButton(),
         const SizedBox(height: 20),
-        _buildSwitchToTechnicianLogin(),
+        _buildSwitchToUserLogin(),
       ],
     ),
   );
@@ -171,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       children: [
         const Text(
-          'Welcome Back',
+          'Technician Login',
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w700,
@@ -188,7 +187,8 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'Sign in to continue',
+          textAlign: TextAlign.center,
+          'Sign in to access technician features',
           style: TextStyle(
             fontSize: 16,
             color: Colors.grey[600],
@@ -361,14 +361,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildSwitchToTechnicianLogin() {
+  Widget _buildSwitchToUserLogin() {
     return Container(
       margin: const EdgeInsets.only(top: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Are you a technician?',
+            'Not a technician?',
             style: TextStyle(
               color: Colors.grey[600],
               fontSize: 14,
@@ -378,7 +378,7 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: () {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const TechnicianLoginScreen()),
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
               );
             },
             style: TextButton.styleFrom(
@@ -409,18 +409,18 @@ class _LoginScreenState extends State<LoginScreen> {
         final response = await _apiService.login(
           _emailController.text,
           _passwordController.text,
-          isTechnician: false,
+          isTechnician: true,
         );
 
         if (response['status'] == 'success' && response['user'] != null) {
           final userData = response['user'];
           
-          // Check if user is a technician
-          if (userData['designation'] == 'Technician') {
+          // Check if user is not a technician
+          if (userData['designation'] != 'Technician') {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Please use technician login'),
+                  content: Text('Please use regular login'),
                   backgroundColor: Colors.red,
                 ),
               );
@@ -465,8 +465,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void _navigateToMainScreen() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const MainScreen()),
+      MaterialPageRoute(builder: (context) => const TechnicianHomeScreen()),
       (route) => false,
     );
   }
-}
+} 
