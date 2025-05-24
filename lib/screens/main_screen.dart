@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:selco_app/screens/dashboard_screen.dart';
 import 'package:selco_app/screens/enquiry.dart';
-import 'package:selco_app/screens/profile_screen.dart';
+import 'package:selco_app/screens/technician%20screens/profile_screen.dart';
 import 'package:selco_app/screens/quotation_list_screen.dart';
 import '../constants/colors.dart';
 

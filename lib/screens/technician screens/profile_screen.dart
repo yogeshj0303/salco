@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../constants/colors.dart';
-import '../services/shared_prefs_service.dart';
+import '../../constants/colors.dart';
+import '../../services/shared_prefs_service.dart';
+import 'notifications_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -164,7 +165,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             title: const Text('Notifications'),
             trailing: const Icon(Icons.chevron_right, size: 20),
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
+            },
           ),
           _buildDivider(),
           ListTile(

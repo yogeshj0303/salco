@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:selco_app/screens/dashboard_screen.dart';
 import 'package:selco_app/screens/main_screen.dart';
-import 'package:selco_app/screens/technician_login_screen.dart';
+import 'package:selco_app/screens/technician%20screens/technician_login_screen.dart';
 import 'package:selco_app/utils/glass_morphism.dart';
 import '../constants/colors.dart';
 import '../services/api_service.dart';

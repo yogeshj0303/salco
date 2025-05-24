@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:selco_app/screens/login_screen.dart';
-import 'package:selco_app/screens/technician_home_screen.dart';
+import 'package:selco_app/screens/technician%20screens/projects.dart';
+import 'package:selco_app/screens/technician%20screens/technician_main_screen.dart';
 import 'package:selco_app/utils/glass_morphism.dart';
-import '../constants/colors.dart';
-import '../services/api_service.dart';
-import '../services/shared_prefs_service.dart';
+import '../../constants/colors.dart';
+import '../../services/api_service.dart';
+import '../../services/shared_prefs_service.dart';
 
 class TechnicianLoginScreen extends StatefulWidget {
   const TechnicianLoginScreen({super.key});
@@ -465,7 +466,7 @@ class _TechnicianLoginScreenState extends State<TechnicianLoginScreen> {
   void _navigateToMainScreen() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const TechnicianHomeScreen()),
+      MaterialPageRoute(builder: (context) => const TechnicianMainScreen()),
       (route) => false,
     );
   }
